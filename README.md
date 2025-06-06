@@ -1,6 +1,6 @@
 # Game Leaderboard Smart Contract
 
-A decentralized leaderboard system built with Foundry for managing game scores and rankings on the Ethereum blockchain.
+A decentralized leaderboard system built with Foundry for managing game scores and rankings on the EVM blockchain.
 
 ## Features
 
