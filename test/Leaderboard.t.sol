@@ -120,4 +120,91 @@ contract LeaderboardTest is Test {
         Leaderboard.Score[] memory scores = leaderboard.getTopScores();
         assertEq(scores[99].score, 20); // The lowest score should be 20 (from player 2)
     }
+
+    function testGetScores() public {
+        // Submit scores from multiple players
+        vm.startPrank(alice);
+        leaderboard.submitScore(100);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        leaderboard.submitScore(200);
+        vm.stopPrank();
+
+        vm.startPrank(charlie);
+        leaderboard.submitScore(150);
+        vm.stopPrank();
+
+        // Get only the scores
+        uint256[] memory scoreValues = leaderboard.getScores();
+
+        // Verify array length
+        assertEq(scoreValues.length, 3);
+
+        // Verify scores are in descending order
+        assertEq(scoreValues[0], 200); // Bob's score
+        assertEq(scoreValues[1], 150); // Charlie's score
+        assertEq(scoreValues[2], 100); // Alice's score
+    }
+
+    function testGetScoreByPosition() public {
+        // Submit scores from multiple players
+        vm.startPrank(alice);
+        leaderboard.submitScore(100);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        leaderboard.submitScore(200);
+        vm.stopPrank();
+
+        vm.startPrank(charlie);
+        leaderboard.submitScore(150);
+        vm.stopPrank();
+
+        // Test valid positions
+        assertEq(leaderboard.getScoreByPosition(0), 200); // First place (Bob)
+        assertEq(leaderboard.getScoreByPosition(1), 150); // Second place (Charlie)
+        assertEq(leaderboard.getScoreByPosition(2), 100); // Third place (Alice)
+
+        // Test invalid position
+        assertEq(leaderboard.getScoreByPosition(3), 0); // Out of bounds
+    }
+
+    function testGetPlayerAndTimestampByPosition() public {
+        // Submit scores from multiple players
+        vm.startPrank(alice);
+        leaderboard.submitScore(100);
+        vm.stopPrank();
+
+        vm.startPrank(bob);
+        leaderboard.submitScore(200);
+        vm.stopPrank();
+
+        vm.startPrank(charlie);
+        leaderboard.submitScore(150);
+        vm.stopPrank();
+
+        // Test valid positions for player addresses
+        assertEq(leaderboard.getPlayerByPosition(0), bob); // First place
+        assertEq(leaderboard.getPlayerByPosition(1), charlie); // Second place
+        assertEq(leaderboard.getPlayerByPosition(2), alice); // Third place
+
+        // Test invalid position for player address
+        assertEq(leaderboard.getPlayerByPosition(3), address(0)); // Out of bounds
+
+        // Test valid positions for timestamps
+        uint256 firstTimestamp = leaderboard.getTimestampByPosition(0);
+        uint256 secondTimestamp = leaderboard.getTimestampByPosition(1);
+        uint256 thirdTimestamp = leaderboard.getTimestampByPosition(2);
+
+        // Verify timestamps are in descending order (since scores are submitted in sequence)
+        assertTrue(firstTimestamp <= secondTimestamp);
+        assertTrue(secondTimestamp <= thirdTimestamp);
+        assertTrue(firstTimestamp > 0);
+        assertTrue(secondTimestamp > 0);
+        assertTrue(thirdTimestamp > 0);
+
+        // Test invalid position for timestamp
+        assertEq(leaderboard.getTimestampByPosition(3), 0); // Out of bounds
+    }
 }

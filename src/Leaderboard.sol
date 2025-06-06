@@ -117,4 +117,61 @@ contract Leaderboard {
             scores[j] = current;
         }
     }
+
+    /**
+     * @dev Get only the scores array (more gas efficient than getTopScores)
+     * @return Array of scores in descending order
+     */
+    function getScores() external view returns (uint256[] memory) {
+        Score[] memory allScores = scores;
+        uint256[] memory scoreValues = new uint256[](allScores.length);
+
+        for (uint256 i = 0; i < allScores.length; i++) {
+            scoreValues[i] = allScores[i].score;
+        }
+
+        return scoreValues;
+    }
+
+    /**
+     * @dev Get score at a specific position in the leaderboard
+     * @param position The position in the leaderboard (0-based index)
+     * @return The score at the specified position, or 0 if position is invalid
+     */
+    function getScoreByPosition(
+        uint256 position
+    ) external view returns (uint256) {
+        if (position >= scores.length) {
+            return 0;
+        }
+        return scores[position].score;
+    }
+
+    /**
+     * @dev Get player address at a specific position in the leaderboard
+     * @param position The position in the leaderboard (0-based index)
+     * @return The player address at the specified position, or address(0) if position is invalid
+     */
+    function getPlayerByPosition(
+        uint256 position
+    ) external view returns (address) {
+        if (position >= scores.length) {
+            return address(0);
+        }
+        return scores[position].player;
+    }
+
+    /**
+     * @dev Get timestamp at a specific position in the leaderboard
+     * @param position The position in the leaderboard (0-based index)
+     * @return The timestamp at the specified position, or 0 if position is invalid
+     */
+    function getTimestampByPosition(
+        uint256 position
+    ) external view returns (uint256) {
+        if (position >= scores.length) {
+            return 0;
+        }
+        return scores[position].timestamp;
+    }
 }

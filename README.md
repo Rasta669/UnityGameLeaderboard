@@ -54,12 +54,12 @@ To deploy the contract:
 1. Configure your environment variables in `.env`:
 ```
 PRIVATE_KEY=your_private_key
-RPC_URL=your_rpc_url
+RPC_URL=https://sepolia.base.org
 ```
 
 2. Deploy using Forge:
 ```bash
-forge script script/Leaderboard.s.sol --rpc-url $RPC_URL --broadcast
+forge script script/Leaderboard.s.sol:LeaderboardScript --rpc-url $RPC_URL --broadcast --verify -vvvv
 ```
 
 ## Contract Architecture
