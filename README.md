@@ -223,3 +223,135 @@ For more information about the MIT License, visit [choosealicense.com/licenses/m
 
 3. `ScoreRemoved(address player)`
    - Emitted when a player's score is removed
+
+## Repository Usage
+
+### Getting Started
+
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/Rasta669/UnityGameLeaderboard.git
+   cd UnityGameLeaderboard
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   forge install
+   ```
+
+3. **Environment Setup**
+   - Copy `.env.example` to `.env` (if not exists)
+   - Add your private key and RPC URL to `.env`
+   - Never commit your `.env` file
+
+4. **Build and Test**
+   ```bash
+   # Build the project
+   forge build
+   
+   # Run tests
+   forge test
+   
+   # Run tests with gas reporting
+   forge test --gas-report
+   ```
+
+### Development Workflow
+
+1. **Create a New Branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make Changes**
+   - Follow Solidity style guide
+   - Add tests for new features
+   - Update documentation
+
+3. **Test Your Changes**
+   ```bash
+   # Run all tests
+   forge test
+   
+   # Run specific test
+   forge test --match-test testName
+   ```
+
+4. **Deploy (if needed)**
+   ```bash
+   forge script script/Leaderboard.s.sol:LeaderboardScript --rpc-url $RPC_URL --broadcast --verify
+   ```
+
+## Contributing
+
+We welcome contributions from the community! Here's how you can help:
+
+### Pull Requests
+
+1. **Before Submitting**
+   - Fork the repository
+   - Create a feature branch
+   - Ensure all tests pass
+   - Update documentation
+   - Follow the commit message format:
+     ```
+     type(scope): description
+     
+     [optional body]
+     [optional footer]
+     ```
+     Types: feat, fix, docs, style, refactor, test, chore
+
+2. **PR Process**
+   - Submit PR against `main` branch
+   - Include clear description of changes
+   - Reference any related issues
+   - Ensure CI checks pass
+   - Request review from maintainers
+
+3. **Code Review**
+   - Address review comments
+   - Keep PR focused and small
+   - Update PR as needed
+   - Squash commits if requested
+
+### Community Guidelines
+
+1. **Communication**
+   - Use GitHub Issues for bug reports
+   - Use Discussions for feature requests
+   - Be respectful and constructive
+   - Follow the Code of Conduct
+
+2. **Getting Help**
+   - Check existing issues and discussions
+   - Search documentation
+   - Join our community chat (if available)
+   - Create a new issue if needed
+
+3. **Feature Requests**
+   - Use the issue template
+   - Describe the use case
+   - Explain the benefit
+   - Consider implementation complexity
+
+4. **Bug Reports**
+   - Use the bug report template
+   - Include steps to reproduce
+   - Add error messages/logs
+   - Describe expected behavior
+
+### Code of Conduct
+
+- Be respectful and inclusive
+- Give and accept constructive feedback
+- Focus on the best for the community
+- Show empathy towards others
+
+### Recognition
+
+Contributors will be:
+- Listed in the README
+- Mentioned in release notes
+- Given credit in commit history
+- Invited to join the maintainer team (for significant contributions)
