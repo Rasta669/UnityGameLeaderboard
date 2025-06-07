@@ -13,12 +13,40 @@ contract Leaderboard {
 
     // Mapping to track player's current score
     mapping(address => uint256) public playerScores;
+    // Mapping to store player names
+    mapping(address => string) public playerNames;
+    // Mapping to store player addresses by name
+    mapping(string => address) public playerNameToAddress;
 
     // Maximum number of scores to keep
     uint256 public constant MAX_SCORES = 100;
 
     event ScoreSubmitted(address player, uint256 score);
+    event PlayerNameSet(address player, string playerName);
     event ScoreRemoved(address player);
+
+    /**
+     * @dev Set or update a player's name
+     * @param playerName The name to set for the player
+     */
+    function setPlayerName(string memory playerName) external {
+        require(bytes(playerName).length > 0, "Player name cannot be empty");
+        require(bytes(playerName).length <= 32, "Player name too long");
+
+        // Remove old name mapping if it exists
+        string memory oldName = playerNames[msg.sender];
+        if (
+            bytes(oldName).length > 0 &&
+            keccak256(bytes(oldName)) != keccak256(bytes(playerName))
+        ) {
+            playerNameToAddress[oldName] = address(0);
+        }
+        // Update both mappings
+        playerNames[msg.sender] = playerName;
+        playerNameToAddress[playerName] = msg.sender;
+
+        emit PlayerNameSet(msg.sender, playerName);
+    }
 
     /**
      * @dev Submit a new score for the game
@@ -58,11 +86,10 @@ contract Leaderboard {
         if (scores.length > MAX_SCORES) {
             // Remove the lowest score
             address removedPlayer = scores[scores.length - 1].player;
+            uint256 removedScore = scores[scores.length - 1].score;
             scores.pop();
             // Only remove from playerScores if this was their only score
-            if (
-                playerScores[removedPlayer] == scores[scores.length - 1].score
-            ) {
+            if (playerScores[removedPlayer] == removedScore) {
                 playerScores[removedPlayer] = 0;
             }
         }
@@ -173,5 +200,80 @@ contract Leaderboard {
             return 0;
         }
         return scores[position].timestamp;
+    }
+
+    /**
+     * @dev Get player name at a specific position in the leaderboard
+     * @param position The position in the leaderboard (0-based index)
+     * @return The player name at the specified position, or empty string if position is invalid
+     */
+    function getPlayerNameByPosition(
+        uint256 position
+    ) external view returns (string memory) {
+        if (position >= scores.length) {
+            return "";
+        }
+        return playerNames[scores[position].player];
+    }
+
+    /**
+     * @dev Get all player names from the leaderboard
+     * @return Array of player names in descending order of scores
+     */
+    function getPlayerNames() external view returns (string[] memory) {
+        Score[] memory allScores = scores;
+        string[] memory names = new string[](allScores.length);
+
+        for (uint256 i = 0; i < allScores.length; i++) {
+            names[i] = playerNames[allScores[i].player];
+        }
+
+        return names;
+    }
+
+    /**
+     * @dev Get player names for a specific range of positions
+     * @param start The starting position (inclusive)
+     * @param end The ending position (exclusive)
+     * @return Array of player names in the specified range
+     */
+    function getPlayerNamesInRange(
+        uint256 start,
+        uint256 end
+    ) external view returns (string[] memory) {
+        require(start < end, "Start position must be less than end position");
+        require(
+            end <= scores.length,
+            "End position exceeds leaderboard length"
+        );
+
+        uint256 rangeLength = end - start;
+        string[] memory names = new string[](rangeLength);
+
+        for (uint256 i = 0; i < rangeLength; i++) {
+            names[i] = playerNames[scores[start + i].player];
+        }
+
+        return names;
+    }
+
+    /**
+     * @dev Get a player's name by their address
+     * @param player The address of the player
+     * @return The player's name, or empty string if not found
+     */
+    function getPlayerName(
+        address player
+    ) external view returns (string memory) {
+        return playerNames[player];
+    }
+
+    /// @notice Get a player's address by their name
+    /// @param playerName The name of the player to look up
+    /// @return The address associated with the player name, or address(0) if not found
+    function getPlayerAddressByName(
+        string memory playerName
+    ) public view returns (address) {
+        return playerNameToAddress[playerName];
     }
 }

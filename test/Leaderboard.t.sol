@@ -2,209 +2,335 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "../src/Leaderboard.sol";
 
 contract LeaderboardTest is Test {
     Leaderboard public leaderboard;
-    address public alice = address(0x1);
-    address public bob = address(0x2);
-    address public charlie = address(0x3);
+    address public player1;
+    address public player2;
+    address public player3;
 
     function setUp() public {
         leaderboard = new Leaderboard();
-        vm.label(alice, "Alice");
-        vm.label(bob, "Bob");
-        vm.label(charlie, "Charlie");
+        player1 = makeAddr("player1");
+        player2 = makeAddr("player2");
+        player3 = makeAddr("player3");
     }
 
     function testSubmitScore() public {
-        vm.startPrank(alice);
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
         leaderboard.submitScore(100);
         vm.stopPrank();
 
-        Leaderboard.Score[] memory scores = leaderboard.getTopScores();
-        assertEq(scores.length, 1);
-        assertEq(scores[0].player, alice);
-        assertEq(scores[0].score, 100);
-        assertEq(leaderboard.getPlayerScore(alice), 100);
-    }
-
-    function testMultipleScores() public {
-        // Alice submits score
-        vm.startPrank(alice);
-        leaderboard.submitScore(100);
-        vm.stopPrank();
-
-        // Bob submits higher score
-        vm.startPrank(bob);
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
         leaderboard.submitScore(200);
         vm.stopPrank();
 
-        // Charlie submits middle score
-        vm.startPrank(charlie);
-        leaderboard.submitScore(150);
-        vm.stopPrank();
-
-        Leaderboard.Score[] memory scores = leaderboard.getTopScores();
-        assertEq(scores.length, 3);
-        assertEq(scores[0].player, bob);
-        assertEq(scores[0].score, 200);
-        assertEq(scores[1].player, charlie);
-        assertEq(scores[1].score, 150);
-        assertEq(scores[2].player, alice);
-        assertEq(scores[2].score, 100);
-
-        // Verify player scores
-        assertEq(leaderboard.getPlayerScore(alice), 100);
-        assertEq(leaderboard.getPlayerScore(bob), 200);
-        assertEq(leaderboard.getPlayerScore(charlie), 150);
-    }
-
-    function testUpdateScore() public {
-        // Alice submits initial score
-        vm.startPrank(alice);
-        leaderboard.submitScore(100);
-        vm.stopPrank();
-
-        // Alice tries to update with lower score (should not update)
-        vm.startPrank(alice);
-        leaderboard.submitScore(50);
-        vm.stopPrank();
-
-        // Verify score didn't change
-        assertEq(leaderboard.getPlayerScore(alice), 100);
-
-        // Alice updates with higher score
-        vm.startPrank(alice);
+        vm.startPrank(player3);
+        leaderboard.setPlayerName("Player Three");
         leaderboard.submitScore(300);
         vm.stopPrank();
 
-        // Verify score updated
-        assertEq(leaderboard.getPlayerScore(alice), 300);
+        // Check scores
+        assertEq(leaderboard.getScoreByPosition(0), 300);
+        assertEq(leaderboard.getScoreByPosition(1), 200);
+        assertEq(leaderboard.getScoreByPosition(2), 100);
 
-        Leaderboard.Score[] memory scores = leaderboard.getTopScores();
-        assertEq(scores.length, 1);
-        assertEq(scores[0].player, alice);
-        assertEq(scores[0].score, 300);
+        // Check player names
+        assertEq(leaderboard.getPlayerName(player1), "Player One");
+        assertEq(leaderboard.getPlayerName(player2), "Player Two");
+        assertEq(leaderboard.getPlayerName(player3), "Player Three");
+
+        // Check player addresses by name
+        assertEq(leaderboard.getPlayerAddressByName("Player One"), player1);
+        assertEq(leaderboard.getPlayerAddressByName("Player Two"), player2);
+        assertEq(leaderboard.getPlayerAddressByName("Player Three"), player3);
     }
 
-    function test_RevertWhen_ScoreIsZero() public {
-        vm.startPrank(alice);
-        vm.expectRevert("Score must be greater than 0");
-        leaderboard.submitScore(0);
+    function testUpdatePlayerName() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Original Name");
+        leaderboard.submitScore(100);
+
+        // Update name
+        leaderboard.setPlayerName("Updated Name");
         vm.stopPrank();
+
+        assertEq(leaderboard.getPlayerName(player1), "Updated Name");
+        assertEq(leaderboard.getPlayerAddressByName("Updated Name"), player1);
+        assertEq(
+            leaderboard.getPlayerAddressByName("Original Name"),
+            address(0)
+        );
     }
 
     function testMaxScores() public {
         // Submit scores from 100 different players
-        for (uint256 i = 1; i <= 100; i++) {
-            address player = address(uint160(i));
+        for (uint256 i = 0; i < 100; i++) {
+            address player = makeAddr(
+                string(abi.encodePacked("player", vm.toString(i)))
+            );
             vm.startPrank(player);
-            leaderboard.submitScore(i * 10);
+            string memory playerName = string(
+                abi.encodePacked("Player ", vm.toString(i))
+            );
+            leaderboard.setPlayerName(playerName);
+            leaderboard.submitScore((i + 1) * 10);
             vm.stopPrank();
         }
 
-        // Verify we have exactly MAX_SCORES
+        // Verify we have exactly MAX_SCORES entries
         assertEq(leaderboard.getTopScores().length, 100);
 
-        // Submit a new score that should make it to the leaderboard
-        address newPlayer = address(0x999);
+        // Submit a new score from a new player
+        address newPlayer = makeAddr("newPlayer");
         vm.startPrank(newPlayer);
-        leaderboard.submitScore(500); // This should be in the middle
+        leaderboard.setPlayerName("New Player");
+        leaderboard.submitScore(1000); // This should be the highest score
         vm.stopPrank();
 
-        // Verify we still have exactly MAX_SCORES
-        assertEq(leaderboard.getTopScores().length, 100);
+        // Verify the new score is at the top (position 0)
+        assertEq(leaderboard.getScoreByPosition(0), 1000);
+        assertEq(leaderboard.getScoreByPosition(1), 1000);
+        assertEq(leaderboard.getPlayerNameByPosition(1), "New Player");
+        assertEq(leaderboard.getTopScores().length, 100); // Still at max length
 
-        // Verify the lowest score was removed
-        Leaderboard.Score[] memory scores = leaderboard.getTopScores();
-        assertEq(scores[99].score, 20); // The lowest score should be 20 (from player 2)
+        // Verify that the lowest score (from Player 0 with score 10) was removed
+        // and the new lowest score is from Player 1 with score 20
+        assertEq(leaderboard.getScoreByPosition(99), 20);
+        assertEq(leaderboard.getPlayerNameByPosition(99), "Player 1");
+    }
+
+    function testInvalidScore() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
+
+        // Try to submit score of 0
+        vm.expectRevert("Score must be greater than 0");
+        leaderboard.submitScore(0);
+
+        // Try to submit empty name
+        vm.expectRevert("Player name cannot be empty");
+        leaderboard.setPlayerName("");
+
+        // Try to submit name that's too long
+        string
+            memory longName = "This name is way too long and should exceed the maximum length allowed by the contract";
+        vm.expectRevert("Player name too long");
+        leaderboard.setPlayerName(longName);
+
+        vm.stopPrank();
+    }
+
+    function testGetPlayerNames() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
+        leaderboard.submitScore(100);
+        vm.stopPrank();
+
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
+        leaderboard.submitScore(200);
+        vm.stopPrank();
+
+        vm.startPrank(player3);
+        leaderboard.setPlayerName("Player Three");
+        leaderboard.submitScore(300);
+        vm.stopPrank();
+
+        string[] memory names = leaderboard.getPlayerNames();
+        assertEq(names.length, 3);
+        assertEq(names[0], "Player Three");
+        assertEq(names[1], "Player Two");
+        assertEq(names[2], "Player One");
+    }
+
+    function testGetPlayerNamesInRange() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
+        leaderboard.submitScore(100);
+        vm.stopPrank();
+
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
+        leaderboard.submitScore(200);
+        vm.stopPrank();
+
+        vm.startPrank(player3);
+        leaderboard.setPlayerName("Player Three");
+        leaderboard.submitScore(300);
+        vm.stopPrank();
+
+        string[] memory names = leaderboard.getPlayerNamesInRange(0, 2);
+        assertEq(names.length, 2);
+        assertEq(names[0], "Player Three");
+        assertEq(names[1], "Player Two");
+    }
+
+    function testGetPlayerNameByPosition() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
+        leaderboard.submitScore(100);
+        vm.stopPrank();
+
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
+        leaderboard.submitScore(200);
+        vm.stopPrank();
+
+        assertEq(leaderboard.getPlayerNameByPosition(0), "Player Two");
+        assertEq(leaderboard.getPlayerNameByPosition(1), "Player One");
+        assertEq(leaderboard.getPlayerNameByPosition(2), ""); // Invalid position
     }
 
     function testGetScores() public {
-        // Submit scores from multiple players
-        vm.startPrank(alice);
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
         leaderboard.submitScore(100);
         vm.stopPrank();
 
-        vm.startPrank(bob);
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
         leaderboard.submitScore(200);
         vm.stopPrank();
 
-        vm.startPrank(charlie);
-        leaderboard.submitScore(150);
-        vm.stopPrank();
-
-        // Get only the scores
         uint256[] memory scoreValues = leaderboard.getScores();
-
-        // Verify array length
-        assertEq(scoreValues.length, 3);
-
-        // Verify scores are in descending order
-        assertEq(scoreValues[0], 200); // Bob's score
-        assertEq(scoreValues[1], 150); // Charlie's score
-        assertEq(scoreValues[2], 100); // Alice's score
+        assertEq(scoreValues.length, 2);
+        assertEq(scoreValues[0], 200);
+        assertEq(scoreValues[1], 100);
     }
 
-    function testGetScoreByPosition() public {
-        // Submit scores from multiple players
-        vm.startPrank(alice);
+    function testGetPlayerByPosition() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
         leaderboard.submitScore(100);
         vm.stopPrank();
 
-        vm.startPrank(bob);
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
         leaderboard.submitScore(200);
         vm.stopPrank();
 
-        vm.startPrank(charlie);
-        leaderboard.submitScore(150);
-        vm.stopPrank();
-
-        // Test valid positions
-        assertEq(leaderboard.getScoreByPosition(0), 200); // First place (Bob)
-        assertEq(leaderboard.getScoreByPosition(1), 150); // Second place (Charlie)
-        assertEq(leaderboard.getScoreByPosition(2), 100); // Third place (Alice)
-
-        // Test invalid position
-        assertEq(leaderboard.getScoreByPosition(3), 0); // Out of bounds
+        assertEq(leaderboard.getPlayerByPosition(0), player2);
+        assertEq(leaderboard.getPlayerByPosition(1), player1);
+        assertEq(leaderboard.getPlayerByPosition(2), address(0)); // Invalid position
     }
 
-    function testGetPlayerAndTimestampByPosition() public {
-        // Submit scores from multiple players
-        vm.startPrank(alice);
+    function testGetTimestampByPosition() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
         leaderboard.submitScore(100);
         vm.stopPrank();
 
-        vm.startPrank(bob);
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
         leaderboard.submitScore(200);
         vm.stopPrank();
 
-        vm.startPrank(charlie);
-        leaderboard.submitScore(150);
+        uint256 timestamp1 = leaderboard.getTimestampByPosition(0);
+        uint256 timestamp2 = leaderboard.getTimestampByPosition(1);
+        assertTrue(timestamp1 > 0);
+        assertTrue(timestamp2 > 0);
+        assertTrue(timestamp1 >= timestamp2); // First score should be newer or same time
+        assertEq(leaderboard.getTimestampByPosition(2), 0); // Invalid position
+    }
+
+    function testScoreUpdates() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
+
+        // Submit initial score
+        leaderboard.submitScore(100);
+        assertEq(leaderboard.getPlayerScore(player1), 100);
+
+        // Submit lower score (should be ignored)
+        leaderboard.submitScore(50);
+        assertEq(leaderboard.getPlayerScore(player1), 100);
+
+        // Submit higher score (should update)
+        leaderboard.submitScore(200);
+        assertEq(leaderboard.getPlayerScore(player1), 200);
+        vm.stopPrank();
+    }
+
+    function testMultipleScoreUpdates() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
+
+        // Submit multiple increasing scores
+        leaderboard.submitScore(100);
+        leaderboard.submitScore(200);
+        leaderboard.submitScore(300);
+        leaderboard.submitScore(400);
+
+        // Verify only the highest score is kept
+        assertEq(leaderboard.getPlayerScore(player1), 400);
+        assertEq(leaderboard.getTopScores().length, 1);
+        assertEq(leaderboard.getScoreByPosition(0), 400);
+        vm.stopPrank();
+    }
+
+    function testEmptyLeaderboard() public {
+        // Test getters with empty leaderboard
+        assertEq(leaderboard.getTopScores().length, 0);
+        assertEq(leaderboard.getScores().length, 0);
+        assertEq(leaderboard.getPlayerNames().length, 0);
+        assertEq(leaderboard.getScoreByPosition(0), 0);
+        assertEq(leaderboard.getPlayerByPosition(0), address(0));
+        assertEq(leaderboard.getPlayerNameByPosition(0), "");
+        assertEq(leaderboard.getTimestampByPosition(0), 0);
+    }
+
+    function testInvalidRangeQueries() public {
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
+        leaderboard.submitScore(100);
         vm.stopPrank();
 
-        // Test valid positions for player addresses
-        assertEq(leaderboard.getPlayerByPosition(0), bob); // First place
-        assertEq(leaderboard.getPlayerByPosition(1), charlie); // Second place
-        assertEq(leaderboard.getPlayerByPosition(2), alice); // Third place
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
+        leaderboard.submitScore(200);
+        vm.stopPrank();
 
-        // Test invalid position for player address
-        assertEq(leaderboard.getPlayerByPosition(3), address(0)); // Out of bounds
+        // Test invalid range (start >= end)
+        vm.expectRevert("Start position must be less than end position");
+        leaderboard.getPlayerNamesInRange(1, 1);
 
-        // Test valid positions for timestamps
-        uint256 firstTimestamp = leaderboard.getTimestampByPosition(0);
-        uint256 secondTimestamp = leaderboard.getTimestampByPosition(1);
-        uint256 thirdTimestamp = leaderboard.getTimestampByPosition(2);
+        // Test range exceeding leaderboard length
+        vm.expectRevert("End position exceeds leaderboard length");
+        leaderboard.getPlayerNamesInRange(0, 3);
+    }
 
-        // Verify timestamps are in descending order (since scores are submitted in sequence)
-        assertTrue(firstTimestamp <= secondTimestamp);
-        assertTrue(secondTimestamp <= thirdTimestamp);
-        assertTrue(firstTimestamp > 0);
-        assertTrue(secondTimestamp > 0);
-        assertTrue(thirdTimestamp > 0);
+    function testScoreRemovalOnUpdate() public {
+        // Add multiple players
+        vm.startPrank(player1);
+        leaderboard.setPlayerName("Player One");
+        leaderboard.submitScore(100);
+        vm.stopPrank();
 
-        // Test invalid position for timestamp
-        assertEq(leaderboard.getTimestampByPosition(3), 0); // Out of bounds
+        vm.startPrank(player2);
+        leaderboard.setPlayerName("Player Two");
+        leaderboard.submitScore(200);
+        vm.stopPrank();
+
+        vm.startPrank(player3);
+        leaderboard.setPlayerName("Player Three");
+        leaderboard.submitScore(300);
+        vm.stopPrank();
+
+        // Update player1's score
+        vm.startPrank(player1);
+        leaderboard.submitScore(400);
+        vm.stopPrank();
+
+        // Verify player1's old score was removed and new score is at the top
+        assertEq(leaderboard.getTopScores().length, 3);
+        assertEq(leaderboard.getScoreByPosition(0), 400);
+        assertEq(leaderboard.getPlayerByPosition(0), player1);
+        assertEq(leaderboard.getScoreByPosition(1), 300);
+        assertEq(leaderboard.getScoreByPosition(2), 200);
     }
 }
