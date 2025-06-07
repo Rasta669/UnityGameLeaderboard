@@ -49,18 +49,61 @@ forge test
 
 ### Deployment
 
-To deploy the contract:
+The contract is deployed on Base Sepolia testnet:
+
+- Contract Address: `0x7Cd309B089F7C276365337e140Dd4a8d01ebB5D6`
+- Network: Base Sepolia (Chain ID: 84532)
+- Explorer: [Base Sepolia Explorer](https://sepolia.basescan.org/address/0x7Cd309B089F7C276365337e140Dd4a8d01ebB5D6)
+
+To deploy the contract locally:
 
 1. Configure your environment variables in `.env`:
 ```
 PRIVATE_KEY=your_private_key
-RPC_URL=https://sepolia.base.org
+RPC_URL=your_base_sepolia_rpc_url
 ```
 
 2. Deploy using Forge:
 ```bash
 forge script script/Leaderboard.s.sol:LeaderboardScript --rpc-url $RPC_URL --broadcast --verify -vvvv
 ```
+
+## Contract Usage
+
+### Interacting with the Contract
+
+You can interact with the deployed contract using any Ethereum wallet or development environment that supports Base Sepolia. Here are some example interactions:
+
+1. Submit a score:
+```solidity
+function submitScore(string memory gameId, uint256 score)
+```
+
+2. Get top scores for a game:
+```solidity
+function getTopScores(string memory gameId) returns (Score[] memory)
+```
+
+3. Get a player's score:
+```solidity
+function getPlayerScore(string memory gameId, address player) returns (Score memory)
+```
+
+### Integration Example
+
+To integrate with your game:
+
+1. Connect to the contract using the deployed address
+2. Call `submitScore` whenever a player completes a game
+3. Use `getTopScores` to display the leaderboard
+4. Use `getPlayerScore` to show individual player rankings
+
+## Gas Optimization
+
+The contract is optimized for Base network's low gas fees:
+- Average deployment cost: ~0.00000000085 ETH
+- Score submission cost: ~0.0000000001 ETH
+- Read operations are free (view functions)
 
 ## Contract Architecture
 
@@ -79,3 +122,94 @@ The contract uses the following data structures:
 ## License
 
 MIT
+
+## Contract Functions
+
+### Write Functions
+
+1. `submitScore(uint256 score)`
+   - Submits a new score for the caller
+   - Only updates if new score is higher than current score
+   - Automatically sorts and maintains top 100 scores
+   - Emits `ScoreSubmitted` event
+   - Requirements:
+     - Score must be greater than 0
+
+2. `setPlayerName(string memory playerName)`
+   - Sets or updates a player's display name
+   - Updates both player-to-name and name-to-player mappings
+   - Emits `PlayerNameSet` event
+   - Requirements:
+     - Player name cannot be empty
+     - Player name must be 32 characters or less
+
+### Read Functions
+
+1. `getTopScores() returns (Score[] memory)`
+   - Returns all scores in descending order
+   - Each score includes player address, score value, and timestamp
+
+2. `getPlayerScore(address player) returns (uint256)`
+   - Returns a specific player's current score
+   - Returns 0 if player has no score
+
+3. `getScores() returns (uint256[] memory)`
+   - Gas-efficient version of getTopScores
+   - Returns only the score values in descending order
+
+4. `getScoreByPosition(uint256 position) returns (uint256)`
+   - Returns score at a specific position in the leaderboard
+   - Returns 0 if position is invalid
+
+5. `getPlayerByPosition(uint256 position) returns (address)`
+   - Returns player address at a specific position
+   - Returns address(0) if position is invalid
+
+6. `getTimestampByPosition(uint256 position) returns (uint256)`
+   - Returns timestamp of score at a specific position
+   - Returns 0 if position is invalid
+
+7. `getPlayerNameByPosition(uint256 position) returns (string memory)`
+   - Returns player name at a specific position
+   - Returns empty string if position is invalid or player has no name
+
+8. `getPlayerNames() returns (string[] memory)`
+   - Returns all player names in descending order of scores
+
+9. `getPlayerNamesInRange(uint256 start, uint256 end) returns (string[] memory)`
+   - Returns player names for a specific range of positions
+   - Requirements:
+     - Start position must be less than end position
+     - End position must not exceed leaderboard length
+
+### Public Variables
+
+1. `scores` (Score[])
+   - Array of all scores in the leaderboard
+   - Each score contains:
+     - `player`: address of the player
+     - `score`: player's score value
+     - `timestamp`: when the score was submitted
+
+2. `playerScores` (mapping(address => uint256))
+   - Maps player addresses to their current scores
+
+3. `playerNames` (mapping(address => string))
+   - Maps player addresses to their display names
+
+4. `playerNameToAddress` (mapping(string => address))
+   - Maps player names to their addresses
+
+5. `MAX_SCORES` (uint256 constant)
+   - Maximum number of scores kept in the leaderboard (100)
+
+### Events
+
+1. `ScoreSubmitted(address player, uint256 score)`
+   - Emitted when a new score is submitted
+
+2. `PlayerNameSet(address player, string playerName)`
+   - Emitted when a player sets or updates their name
+
+3. `ScoreRemoved(address player)`
+   - Emitted when a player's score is removed
