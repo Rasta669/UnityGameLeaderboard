@@ -17,6 +17,8 @@ contract Leaderboard {
     mapping(address => string) public playerNames;
     // Mapping to store player addresses by name
     mapping(string => address) public playerNameToAddress;
+    // Array to store player names in order they are set
+    string[] public playerNamesAddr;
 
     // Maximum number of scores to keep
     uint256 public constant MAX_SCORES = 100;
@@ -26,24 +28,29 @@ contract Leaderboard {
     event ScoreRemoved(address player);
 
     /**
-     * @dev Set or update a player's name
+     * @dev Set a player's name (only once, cannot be updated)
      * @param playerName The name to set for the player
      */
     function setPlayerName(string memory playerName) external {
-        require(bytes(playerName).length > 0, "Player name cannot be empty");
+        // If player already has a name, do nothing
+        if (bytes(playerNames[msg.sender]).length > 0) {
+            return;
+        }
+
+        // If empty name, do nothing
+        if (bytes(playerName).length == 0) {
+            return;
+        }
+
+        // Require name length limit
         require(bytes(playerName).length <= 32, "Player name too long");
 
-        // Remove old name mapping if it exists
-        string memory oldName = playerNames[msg.sender];
-        if (
-            bytes(oldName).length > 0 &&
-            keccak256(bytes(oldName)) != keccak256(bytes(playerName))
-        ) {
-            playerNameToAddress[oldName] = address(0);
-        }
-        // Update both mappings
+        // Set name (only once)
         playerNames[msg.sender] = playerName;
         playerNameToAddress[playerName] = msg.sender;
+
+        // Add to array in order
+        playerNamesAddr.push(playerName);
 
         emit PlayerNameSet(msg.sender, playerName);
     }
@@ -275,5 +282,13 @@ contract Leaderboard {
         string memory playerName
     ) public view returns (address) {
         return playerNameToAddress[playerName];
+    }
+
+    /**
+     * @dev Get the total number of scores in the leaderboard
+     * @return The total number of scores
+     */
+    function getTotalScores() external view returns (uint256) {
+        return scores.length;
     }
 }
